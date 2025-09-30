@@ -33,12 +33,14 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(j.error || 'Invalid credentials');
       }
       router.push(next);
-    } catch (e: any) {
-      setErr(e.message);
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error ? e.message : typeof e === 'string' ? e : 'Login failed';
+      setErr(message);
     } finally {
       setLoading(false);
     }
@@ -57,7 +59,7 @@ export default function LoginPage() {
         minHeight: '100dvh',
         display: 'grid',
         placeItems: 'center',
-        background: '#f9fafb', // light gray background
+        background: '#f9fafb',
       }}
     >
       <div
@@ -66,7 +68,7 @@ export default function LoginPage() {
           padding: '32px',
           borderRadius: 16,
           border: '1px solid #e5e7eb',
-          background: '#fff', // white card
+          background: '#fff',
           boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
           fontFamily: 'ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial',
         }}
@@ -83,45 +85,50 @@ export default function LoginPage() {
         <p style={{ margin: '0 0 20px', color: '#6b7280' }}>{subtitle}</p>
 
         <form onSubmit={onSubmit} noValidate style={{ display: 'grid', gap: 14 }}>
- <input
-  id="login-email"
-  type="email"
-  placeholder="Email"
-  autoComplete="username"
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
-  required
-  style={{
-    padding: '12px 14px',
-    borderRadius: 8,
-    border: `1px solid ${email && !isEmail(email) ? '#ef4444' : '#d1d5db'}`,
-    outline: 'none',
-    fontSize: 14,
-    background: '#fff',       // ✅ clean white
-    color: '#111827',         // dark gray text for readability
-  }}
-/>
+          <input
+            id="login-email"
+            type="email"
+            placeholder="Email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{
+              padding: '12px 14px',
+              borderRadius: 8,
+              border: `1px solid ${
+                email && !isEmail(email) ? '#ef4444' : '#d1d5db'
+              }`,
+              outline: 'none',
+              fontSize: 14,
+              background: '#fff',
+              color: '#111827',
+            }}
+          />
 
-<input
-  type="password"
-  placeholder="Password"
-  autoComplete="current-password"
-  value={password}
-  onChange={(e) => setPassword(e.target.value)}
-  required
-  minLength={4}
-  style={{
-    padding: '12px 14px',
-    borderRadius: 8,
-    border: `1px solid ${password && password.length < 4 ? '#ef4444' : '#d1d5db'}`,
-    outline: 'none',
-    fontSize: 14,
-    background: '#fff',       // ✅ clean white
-    color: '#111827',
-  }}
-/>
-
-          <small style={{ color: '#9ca3af', fontSize: 12 }}>Minimum 4 characters</small>
+          <input
+            type="password"
+            placeholder="Password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={4}
+            style={{
+              padding: '12px 14px',
+              borderRadius: 8,
+              border: `1px solid ${
+                password && password.length < 4 ? '#ef4444' : '#d1d5db'
+              }`,
+              outline: 'none',
+              fontSize: 14,
+              background: '#fff',
+              color: '#111827',
+            }}
+          />
+          <small style={{ color: '#9ca3af', fontSize: 12 }}>
+            Minimum 4 characters
+          </small>
 
           {err && (
             <div
@@ -150,8 +157,8 @@ export default function LoginPage() {
               color: 'white',
               fontWeight: 600,
               fontSize: 15,
-              cursor: (!valid || loading) ? 'not-allowed' : 'pointer',
-              opacity: (!valid || loading) ? 0.7 : 1,
+              cursor: !valid || loading ? 'not-allowed' : 'pointer',
+              opacity: !valid || loading ? 0.7 : 1,
             }}
           >
             {loading ? 'Signing in…' : 'Sign in'}
