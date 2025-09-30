@@ -2,12 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const PROTECTED_PREFIXES = ['/dashboard'];
-
-export default async function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
-  const needsAuth = PROTECTED_PREFIXES.some(p => pathname.startsWith(p));
-  if (!needsAuth) return NextResponse.next();
 
   const token = req.cookies.get('auth')?.value;
   if (!token) {

@@ -1,213 +1,162 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-const BRAND_NAME =
-  process.env.NEXT_PUBLIC_BRAND_NAME || 'Client Portal';
-const BRAND_PRIMARY =
-  process.env.NEXT_PUBLIC_BRAND_COLOR || '#2271b1'; // WP blue
-const BRAND_SUBTITLE =
-  process.env.NEXT_PUBLIC_BRAND_SUBTITLE || 'Sign in to view your reports';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  const letters = parts.slice(0, 2).map(p => p[0]?.toUpperCase() || '');
-  return letters.join('') || 'CP';
+function isEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get('next') || '/dashboard';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
-  const [caps, setCaps] = useState(false);
-  const [remember, setRemember] = useState(true);
 
-  const pwdRef = useRef<HTMLInputElement | null>(null);
-  const initials = useMemo(() => getInitials(BRAND_NAME), []);
-
-  // Load remembered email
-  useEffect(() => {
-    const saved = localStorage.getItem('cp-email');
-    if (saved) setEmail(saved);
-  }, []);
-  // Save remembered email
-  useEffect(() => {
-    if (remember) localStorage.setItem('cp-email', email);
-    else localStorage.removeItem('cp-email');
-  }, [email, remember]);
+  const valid = useMemo(() => {
+    return isEmail(email) && password.trim().length >= 4;
+  }, [email, password]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (loading) return;
+    if (!valid) return;
     setErr(null);
     setLoading(true);
     try {
-      const params = new URLSearchParams(window.location.search);
-      const next = params.get('next') || '/dashboard';
-
-      const res = await fetch(`/api/login?next=${encodeURIComponent(next)}`, {
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email, password }),
       });
-
-      if (res.ok) {
-        const { redirectTo } = await res.json();
-        window.location.href = redirectTo || '/dashboard';
-      } else {
-        const { error } = await res.json().catch(() => ({}));
-        setErr(error || 'Invalid email or password');
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Invalid credentials');
       }
-    } catch {
-      setErr('Network error. Please try again.');
+      router.push(next);
+    } catch (e: any) {
+      setErr(e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  function onKeyEvent(e: React.KeyboardEvent<HTMLInputElement>) {
-    // simple caps detection
-    const isLetter = e.key.length === 1 && /[a-z]/i.test(e.key);
-    if (!isLetter) return;
-    const capsOn = e.getModifierState && e.getModifierState('CapsLock');
-    setCaps(!!capsOn);
-  }
+  useEffect(() => {
+    document.getElementById('login-email')?.focus();
+  }, []);
 
-  // Styles
-  const wrap: React.CSSProperties = {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: '#f0f0f1',
-    padding: 16,
-  };
-  const cardWrap: React.CSSProperties = { width: 420, maxWidth: '92vw' };
-  const logo: React.CSSProperties = {
-    width: 88, height: 88, borderRadius: '50%',
-    display: 'grid', placeItems: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 28,
-    margin: '0 auto 14px',
-    background: BRAND_PRIMARY,
-    userSelect: 'none',
-  };
-  const title: React.CSSProperties = {
-    textAlign: 'center',
-    margin: '6px 0 20px',
-    color: '#1d2327',
-    lineHeight: 1.1,
-  };
-  const box: React.CSSProperties = {
-    background: '#fff',
-    padding: 24,
-    borderRadius: 10,
-    border: '1px solid #c3c4c7',
-    boxShadow: '0 1px 3px rgba(0,0,0,.08)',
-    overflow: 'hidden',
-  };
-  const label: React.CSSProperties = { display: 'block', margin: '12px 0 6px', color: '#1d2327', fontSize: 14 };
-  const input: React.CSSProperties = {
-    width: '100%', padding: '9px 12px',
-    border: '1px solid #8c8f94',
-    borderRadius: 6, fontSize: 14, outline: 'none',
-    background: '#fff',  boxSizing: 'border-box', 
-  };
-  const row: React.CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' };
-  const pwdBox: React.CSSProperties = { position: 'relative' };
-  const toggleBtn: React.CSSProperties = {
-    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-    background: 'transparent', border: 0, cursor: 'pointer', color: '#3c434a',
-    fontSize: 12, padding: '4px 6px',boxSizing: 'border-box', 
-  };
-  const help: React.CSSProperties = { fontSize: 12, color: '#3c434a' };
-  const capsMsg: React.CSSProperties = { fontSize: 12, color: '#b32d2e', marginTop: 6 };
-  const error: React.CSSProperties = {
-    background: '#f7e0e1', border: '1px solid #b32d2e', color: '#872626',
-    padding: '10px 12px', borderRadius: 6, fontSize: 13, marginTop: 10,
-  };
-  const btn: React.CSSProperties = {
-    width: '100%', marginTop: 16, background: BRAND_PRIMARY,
-    color: '#fff', border: 0, padding: '12px 14px', borderRadius: 6,
-    cursor: 'pointer', fontWeight: 700, letterSpacing: 0.2,
-    opacity: loading ? 0.8 : 1,
-  };
-  const footer: React.CSSProperties = {
-    textAlign: 'center', marginTop: 10, fontSize: 12, color: '#616971',
-  };
+  const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || 'Client Reports';
+  const subtitle = process.env.NEXT_PUBLIC_BRAND_SUBTITLE || 'Secure client access';
 
   return (
-    <div style={wrap}>
-      <div style={cardWrap}>
-        <div style={logo} aria-hidden="true">{initials}</div>
-        <div style={title}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{BRAND_NAME}</div>
-          <div style={{ fontSize: 13, color: '#50575e', marginTop: 4 }}>{BRAND_SUBTITLE}</div>
-        </div>
+    <div
+      style={{
+        minHeight: '100dvh',
+        display: 'grid',
+        placeItems: 'center',
+        background: '#f9fafb', // light gray background
+      }}
+    >
+      <div
+        style={{
+          width: 'min(92vw, 400px)',
+          padding: '32px',
+          borderRadius: 16,
+          border: '1px solid #e5e7eb',
+          background: '#fff', // white card
+          boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+          fontFamily: 'ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial',
+        }}
+      >
+        <h1
+          style={{
+            margin: '0 0 4px',
+            fontSize: 22,
+            color: 'var(--brand-color, #0f6abf)',
+          }}
+        >
+          {brandName}
+        </h1>
+        <p style={{ margin: '0 0 20px', color: '#6b7280' }}>{subtitle}</p>
 
-        <form onSubmit={onSubmit} style={box} aria-describedby={err ? 'error' : undefined}>
-          <label style={label} htmlFor="email">Email</label>
-          <input
-            id="email"
-            style={input}
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
+        <form onSubmit={onSubmit} noValidate style={{ display: 'grid', gap: 14 }}>
+ <input
+  id="login-email"
+  type="email"
+  placeholder="Email"
+  autoComplete="username"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  required
+  style={{
+    padding: '12px 14px',
+    borderRadius: 8,
+    border: `1px solid ${email && !isEmail(email) ? '#ef4444' : '#d1d5db'}`,
+    outline: 'none',
+    fontSize: 14,
+    background: '#fff',       // ✅ clean white
+    color: '#111827',         // dark gray text for readability
+  }}
+/>
 
-          <label style={label} htmlFor="password">Password</label>
-          <div style={pwdBox}>
-            <input
-              id="password"
-              ref={pwdRef}
-              style={input}
-              type={showPwd ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyUp={onKeyEvent}
-              onKeyDown={onKeyEvent}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPwd(v => !v)}
-              aria-label={showPwd ? 'Hide password' : 'Show password'}
-              style={toggleBtn}
+<input
+  type="password"
+  placeholder="Password"
+  autoComplete="current-password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  required
+  minLength={4}
+  style={{
+    padding: '12px 14px',
+    borderRadius: 8,
+    border: `1px solid ${password && password.length < 4 ? '#ef4444' : '#d1d5db'}`,
+    outline: 'none',
+    fontSize: 14,
+    background: '#fff',       // ✅ clean white
+    color: '#111827',
+  }}
+/>
+
+          <small style={{ color: '#9ca3af', fontSize: 12 }}>Minimum 4 characters</small>
+
+          {err && (
+            <div
+              role="alert"
+              style={{
+                background: '#fef2f2',
+                color: '#991b1b',
+                border: '1px solid #fecaca',
+                padding: '10px 12px',
+                borderRadius: 8,
+                fontSize: 13,
+              }}
             >
-              {showPwd ? 'Hide' : 'Show'}
-            </button>
-          </div>
+              {err}
+            </div>
+          )}
 
-          {caps && <div style={capsMsg}>Caps Lock is on</div>}
-
-          <div style={{ ...row, marginTop: 12 }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1d2327' }}>
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={e => setRemember(e.target.checked)}
-                aria-label="Remember my email"
-              />
-              Remember me
-            </label>
-
-            <a href="#" onClick={e => e.preventDefault()} style={{ fontSize: 12, color: BRAND_PRIMARY }}>
-              Forgot password?
-            </a>
-          </div>
-
-          {err && <div id="error" role="alert" style={error}>{err}</div>}
-
-          <button type="submit" style={btn} disabled={loading}>
-            {loading ? 'Signing in…' : 'Log In'}
+          <button
+            disabled={!valid || loading}
+            style={{
+              marginTop: 6,
+              padding: '12px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: 'var(--brand-color, #0f6abf)',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: 15,
+              cursor: (!valid || loading) ? 'not-allowed' : 'pointer',
+              opacity: (!valid || loading) ? 0.7 : 1,
+            }}
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
-        <div style={footer}>
-          © {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
-        </div>
       </div>
     </div>
   );
